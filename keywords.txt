@@ -1,0 +1,8 @@
+garretlabMisakiLEDMatrix  KEYWORD1
+beginText KEYWORD1
+endText KEYWORD1
+textLength  KEYWORD1
+write KEYWORD1
+textFontWidth KEYWORD1
+textFontHeight  KEYWORD1
+textScrollSpeed KEYWORD1
