@@ -1,6 +1,11 @@
 garretlabMisakiLEDMatrix  KEYWORD1
+begin KEYWORD1
+text KEYWORD1
+textFont KEYWORD1
 beginText KEYWORD1
+set KEYWORD1
 endText KEYWORD1
+endDraw KEYWORD1
 textLength  KEYWORD1
 write KEYWORD1
 textFontWidth KEYWORD1

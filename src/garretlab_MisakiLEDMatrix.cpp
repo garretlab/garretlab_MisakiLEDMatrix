@@ -1,140 +1,173 @@
 #include <garretlab_MisakiLEDMatrix.h>
 
-// Constructor
+// Constructor.
 garretlab_MisakiLEDMatrix::garretlab_MisakiLEDMatrix()
   : ArduinoLEDMatrix() {
-  beginText();
 }
 
-// Resets text.
-void garretlab_MisakiLEDMatrix::beginText(int textX) {
+// Begin matrix.
+int garretlab_MisakiLEDMatrix::begin() {
+  ArduinoGraphics::begin();
+  ArduinoLEDMatrix::begin();
+
+  return 1;
+}
+
+// Display text.
+void garretlab_MisakiLEDMatrix::text(const String &str, int x, int y) {
+  byte fontData[fontHeight];
+  char *ptr = (char *)str.c_str();
+
+  if (font != &Font_Misaki) {
+    ArduinoLEDMatrix::text(str, x, y);
+  } else {
+    while (*ptr) {
+      ptr = getFontData(fontData, ptr, true);
+      bitmap(fontData, x, y, fontWidth, fontHeight);
+      x += fontWidth;
+    }
+  }
+}
+
+// Set text font.
+void garretlab_MisakiLEDMatrix::textFont(const Font &which) {
+  font = &which;
+
+  ArduinoGraphics::textFont(which);
+}
+
+// Begin text.
+void garretlab_MisakiLEDMatrix::beginText(int x, int y) {
   textBuffer = "";
   textBufferLength = 0;
-  this->textX = textX;
+  this->textX = x;
+  this->textY = y;
+
+  ArduinoLEDMatrix::beginText(x, y);
+}
+
+// Begin text.
+void garretlab_MisakiLEDMatrix::beginText(int x, int y, uint8_t r, uint8_t g, uint8_t b) {
+  beginText(x, y);
+
+  ArduinoLEDMatrix::beginText(x, y, r, g, b);
+}
+
+// Begin text.
+void garretlab_MisakiLEDMatrix::beginText(int x, int y, uint32_t color) {
+  beginText(x, y, COLOR_R(color), COLOR_G(color), COLOR_B(color));
+}
+
+// Set pixel.
+void garretlab_MisakiLEDMatrix::set(int x, int y, uint8_t r, uint8_t g, uint8_t b) {
+  if (y >= canvasHeight || x >= canvasWidth || y < 0 || x < 0) {
+    return;
+  }
+
+  ArduinoLEDMatrix::set(x, y, r, g, b);
+  canvasBuffer[y][x] = (r | g | b) > 0 ? 1 : 0;
 }
 
 // Display text.
 void garretlab_MisakiLEDMatrix::endText(int scrollDirection) {
   int scrollLength;
-  int displacementX;
-  int x = textX;
 
-  getMisakiFontData((char *)textBuffer.c_str());
+  if (font != &Font_Misaki) {
+    ArduinoLEDMatrix::endText(scrollDirection);
+    return;
+  }
 
   switch (scrollDirection) {
     case SCROLL_LEFT:
       scrollLength = textBufferLength * textFontWidth();
-      displacementX = -1;
+
+      for (int i = 0; i < scrollLength; i++) {
+        beginDraw();
+        text(textBuffer, textX - i, textY);
+        endDraw();
+
+        delay(scrollSpeed);
+      }
       break;
     case SCROLL_RIGHT:
-      scrollLength = textBufferLength * textFontWidth() + width();
-      displacementX = 1;
+      scrollLength = textBufferLength * textFontWidth();
+
+      for (int i = 0; i < scrollLength; i++) {
+        beginDraw();
+        text(textBuffer, textX - (scrollLength - i - 1), textY);
+        endDraw();
+
+        delay(scrollSpeed);
+      }
+      break;
+    case SCROLL_UP:
+      scrollLength = textFontHeight() + textY;
+
+      for (int i = 0; i < scrollLength; i++) {
+        beginDraw();
+        text(textBuffer, textX, textY - i);
+        endDraw();
+
+        delay(scrollSpeed);
+      }
+      break;
+    case SCROLL_DOWN:
+      scrollLength = textFontHeight() + textY;
+
+      for (int i = 0; i < scrollLength; i++) {
+        beginDraw();
+        text(textBuffer, textX, textY - (scrollLength - i - 1));
+        endDraw();
+
+        delay(scrollSpeed);
+      }
       break;
     default:
-      scrollLength = 1;
-      displacementX = 0;
+      beginDraw();
+      text(textBuffer, textX, textY);
+      endDraw();
       break;
   }
+}
 
-  for (int i = 0; i < scrollLength; i++, x += displacementX) {
-    setFrameData(x, textBufferLength);
-    ArduinoLEDMatrix::loadFrame(frameHolder);
-    if (i != (scrollLength - 1)) {
-      delay(scrollSpeed);
+// End draw.
+void garretlab_MisakiLEDMatrix::endDraw() {
+  ArduinoGraphics::endDraw();
+  renderBitmap(canvasBuffer, canvasHeight, canvasWidth);
+}
+
+// Write for Print class.
+size_t garretlab_MisakiLEDMatrix::write(uint8_t c) {
+  static int skip = 0;
+
+  if ((c != 0x0a) && (c != 0x0d)) {  // Skip cr/lf.
+    textBuffer += (char)c;
+    if (skip == 0) {
+      textBufferLength++;
+      if ((c & 0x80) == 0) {
+        skip = 0;
+      } else if ((c & 0xe0) == 0xc0) {
+        skip = 1;
+      } else if ((c & 0xf0) == 0xe0) {
+        skip = 2;
+      }
+    } else {
+      skip--;
     }
   }
+
+  ArduinoGraphics::write(c);
+  return 1;
 }
 
-size_t garretlab_MisakiLEDMatrix::write(uint8_t c) {
-  if ((c != 0x0a) && (c != 0x0d)) {
-    textBuffer += (char)c;
-    return 1;
-  } else {
-    return 0;
-  }
-}
-
-int garretlab_MisakiLEDMatrix::textFontWidth() {
-  return fontWidth;
-}
-
-int garretlab_MisakiLEDMatrix::textFontHeight() {
-  return fontHeight;
-}
-
+// Set text scroll speed.
 void garretlab_MisakiLEDMatrix::textScrollSpeed(unsigned long scrollSpeed) {
   this->scrollSpeed = scrollSpeed;
+
+  ArduinoLEDMatrix::textScrollSpeed(scrollSpeed);
 }
 
-int garretlab_MisakiLEDMatrix::getMisakiFontData(char *str) {
-  int numChar = 0;
-
-  while (*str) {
-    fontData.resize(numChar + 1);
-    fontData[numChar].resize(8);
-    str = getFontData(&fontData[numChar++][0], str, true);
-  }
-
-  textBufferLength = numChar;
-  return textBufferLength;
-}
-
-void garretlab_MisakiLEDMatrix::setFrameData(int x, int length) {
-  int mask[3];
-  int numChar;
-  int index = 0;
-
-  typedef struct {
-    int f;  // frame
-    int d;  // data
-    int s;  // shift
-  } mConv;
-
-  mConv mc00[] = { { 0, 0, 24 }, { 0, 1, 12 }, { 0, 2, 0 }, { 1, 2, 32 }, { 1, 3, 20 }, { 1, 4, 8 }, { 1, 5, -4 }, { 2, 5, 28 }, { 2, 6, 16 }, { 2, 7, 4 }, { -1, -1, -1 } };
-  mConv mc01[] = { { 0, 2, 0 }, { 1, 5, 4 }, { 1, 5, -8 }, { 2, 7, -4 }, { -1, -1, -1 } };
-  mConv mc10[] = { { 0, 0, 16 }, { 0, 1, 4 }, { 1, 2, 24 }, { 1, 3, 12 }, { 1, 4, 0 }, { 2, 5, 20 }, { 2, 6, 8 }, { 2, 7, -4 }, { -1, -1, -1 } };
-  mConv mc11[] = { { 0, 2, 8 }, { 1, 4, 0 }, { 1, 5, 12 }, { 2, 7, 4 }, { -1, -1, -1 } };
-  mConv mc20[] = { { 0, 0, 8 }, { 0, 1, -4 }, { 1, 2, 16 }, { 1, 3, 4 }, { 2, 5, 12 }, { 2, 6, 0 }, { -1, -1, -1 } };
-  mConv mc21[] = { { 1, 4, 8 }, { 2, 6, 0 }, { 2, 7, 12 }, { -1, -1, -1 } };
-  mConv *mcData[][2] = { { mc00, mc01 }, { mc10, mc11 }, { mc20, mc21 } };
-
-  if ((x + length * fontWidth < 0) || (x >= width())) {
-    return;
-  }
-
-  for (int i = 0; i < 3; i++) {
-    frameHolder[i] = 0;
-  }
-
-  if (x < 0) {
-    index = (-x - 1) / fontWidth;
-    x += index * fontWidth;
-    length -= index;
-  }
-
-  numChar = min(length, 3);
-
-  if (x < -4) {
-    mask[0] = 0xff >> -x, mask[1] = 0xff, mask[2] = 0xff << (x + 12);
-  } else if (x < 0) {
-    mask[0] = 0xff >> -x, mask[1] = 0xff << (x + 4), mask[2] = 0xff << (x + 12);
-  } else if (x < 5) {
-    mask[0] = 0xff, mask[1] = 0xff << (x + 4), mask[2] = 0x00;
-  } else {
-    mask[0] = 0xff << (x - 4), mask[1] = 0x00, mask[2] = 0x00;
-  }
-
-  for (int i = 0; i < numChar; i++, index++) {
-    for (int j = 0; j < 2; j++) {
-      int k = 0;
-      while (mcData[i][j][k].f != -1) {
-        if (j == 0) {
-          frameHolder[mcData[i][j][k].f] |= (fontData[index][mcData[i][j][k].d] & mask[i]) << (-x + mcData[i][j][k].s);
-        } else {
-          frameHolder[mcData[i][j][k].f] |= (fontData[index][mcData[i][j][k].d] & mask[i]) >> (x + mcData[i][j][k].s);
-        }
-        k++;
-      }
-    }
-  }
-}
+// Font structure for Misaki font.
+const struct Font Font_Misaki = {
+  8, 8, NULL
+};

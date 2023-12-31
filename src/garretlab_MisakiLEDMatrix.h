@@ -4,33 +4,41 @@
 #include <misakiUTF16.h>
 #include <ArduinoGraphics.h>
 #include <Arduino_LED_Matrix.h>
-#include <vector>
 
-using namespace std;
+#define COLOR_R(color) (uint8_t(color >> 16))
+#define COLOR_G(color) (uint8_t(color >> 8))
+#define COLOR_B(color) (uint8_t(color >> 0))
+
+// Font structure for Misaki font.
+extern const struct Font Font_Misaki;
 
 class garretlab_MisakiLEDMatrix : public ArduinoLEDMatrix {
 public:
-  garretlab_MisakiLEDMatrix();                       // Constructor.
-  void beginText(int x = 0);                        // Begin text.
-  void endText(int scrollDirection = NO_SCROLL);    // Display text.
-  int textLength();                                 // Get text length.
-  size_t write(uint8_t c);                          // Write for Print class.
-  int textFontWidth();                              // Get Text Font Width.
-  int textFontHeight();                             // Get Text Font Height.
-  void textScrollSpeed(unsigned long scrollSpeed);  // Set text scroll speed.
+  garretlab_MisakiLEDMatrix();                                    // Constructor.
+  int begin();                                                    // Begin matrix.
+  void text(const String& str, int x = 0, int y = 0);             // Display text.
+  void textFont(const Font& which);                               // Set text font.
+  void beginText(int x = 0, int y = 0);                           // Begin text.
+  void beginText(int x, int y, uint8_t r, uint8_t g, uint8_t b);  // Begin text.
+  void beginText(int x, int y, uint32_t color);                   // Begin text.
+  void set(int x, int y, uint8_t r, uint8_t g, uint8_t b);        // Set pixel.
+  void endText(int scrollDirection = NO_SCROLL);                  // Display text.
+  void endDraw();                                                 // End draw.
+  size_t write(uint8_t c);                                        // Write for Print class.
+  void textScrollSpeed(unsigned long scrollSpeed);                // Set text scroll speed.
 
-private:
+protected:
   String textBuffer;                       // Buffer to hold text.
   int textBufferLength;                    // Text buffer length, not the memory size.
   int textX;                               // X position of text.
-  const int fontWidth = 8;                 // Font width.
-  const int fontHeight = 8;                // Font height.
-  uint32_t frameHolder[3] = { 0 };         // LED matrix frame.
+  int textY;                               // Y position of text.
+  const struct Font* font = &Font_Misaki;  // Font name.
+  static const int fontWidth = 8;          // Font width.
+  static const int fontHeight = 8;         // Font height.
+  static const byte canvasWidth = 12;      // Canvas width.
+  static const byte canvasHeight = 8;      // Canvas height.
   unsigned long scrollSpeed = 150;         // Text scroll speed.
-  vector<vector<unsigned char>> fontData;  //Fontdata to dispalay on the matrix.
-
-  int getMisakiFontData(char *str);      // Get Misaki-font data.
-  void setFrameData(int x, int length);  // Set Frame data.
+  uint8_t canvasBuffer[8][12] = { { 0 } };
 };
 
 #endif /* GARRETLAB_MISAKI_LED_MATRIX_H */
